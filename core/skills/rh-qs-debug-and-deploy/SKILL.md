@@ -33,7 +33,8 @@ User provides:
 4. **Auto-apply** source code changes explicitly related to OpenShift (inside `if openshift_mode` blocks, OCP-specific config)
 5. **Ask user** for source code changes NOT explicitly related to OpenShift — use AskUserQuestion
 6. **Project-specific deploy commands** — never hardcode generic helm/oc commands; use what the Project Analyzer discovers
-7. **Max 3 fix attempts per resource per phase** — escalate to user after 3 failed attempts (health and e2e phases each get 3 attempts)
+7. **Never guess the deployment variant** — when the analyzer finds multiple mutually-exclusive OpenShift deployment paths, ask the user before deploying (Phase 1d)
+8. **Max 3 fix attempts per resource per phase** — escalate to user after 3 failed attempts (health and e2e phases each get 3 attempts)
 
 ## Workflow
 
@@ -117,6 +118,32 @@ Namespace: {namespace}
 **Output**: `{state_dir}/deploy-analysis.yaml` with deploy commands, expected resources, dependency order
 
 Read the analysis result. Understand the deployment method, components, and dependency graph.
+
+#### 1d. Resolve Deployment Option
+
+Some quickstarts document more than one mutually-exclusive way to deploy to OpenShift — in-cluster model serving vs. an external inference endpoint, GPU vs. CPU-only, full vs. minimal profile. Never guess which one the user wants.
+
+```bash
+yq eval '.deployment_options' {state_dir}/deploy-analysis.yaml
+```
+
+- **Field absent or `null`** — the project has a single deployment path. Nothing to ask; continue to Phase 2.
+- **Two or more options** — AskUserQuestion, one choice per entry, the `recommended: true` entry first:
+
+  ```
+  "This quickstart supports more than one deployment path. Which one should be deployed to {namespace}?
+
+  {label} — {description}
+  Requires: {requires}
+  Why suggested: {rationale}"
+  ```
+
+Once the user chooses, update `{state_dir}/deploy-analysis.yaml` in place:
+
+- Set `selected_option_id` to the chosen option's `id`
+- Set the top-level `deploy_commands` to that option's `deploy_commands`
+
+`deploy-analysis.yaml` is the single source of truth for the chosen path — do not write the selection anywhere else. Every later phase keeps reading `deploy_commands` exactly as before, so the deploy executor and fix applier need no knowledge of options.
 
 ---
 
@@ -307,6 +334,7 @@ The debug/fix files (`{state_dir}/debug-{resource_name}.yaml`, `{state_dir}/fix-
 
 Generate the final report including:
 - Deployment status
+- Deployment option deployed (read `selected_option_id` from `{state_dir}/deploy-analysis.yaml`; omit when the project had a single path)
 - Resources deployed and final state
 - Issues found and fixes applied (read from `{state_dir}/fix-*.yaml` files)
 - E2E test results (pass/fail per test)
@@ -322,6 +350,7 @@ Print it to the user **and** write the same content to `{state_dir}/deploy-repor
 ### DO:
 - Always use `-n <namespace>` on every oc/helm command
 - Use project-specific deploy commands from analysis (not generic templates)
+- Ask the user which deployment option to use when the analyzer found more than one (Phase 1d), and report which one was deployed
 - Fix resources in dependency order (leaves first)
 - Read `unhealthy_resources` field first from state file
 - Let subagents handle diagnosis and fixing — keep orchestration clean
@@ -331,6 +360,8 @@ Print it to the user **and** write the same content to `{state_dir}/deploy-repor
 ### DON'T (never do any of these):
 - Never read subagent prompt files in the main agent
 - Never hardcode generic helm install / oc apply commands
+- Never deploy a project that has `deployment_options` without a `selected_option_id` recorded in `{state_dir}/deploy-analysis.yaml`
+- Never record the selected deployment option anywhere other than `{state_dir}/deploy-analysis.yaml`
 - Never change the intention of the original application flow
 - Never apply source code changes not related to OpenShift without user approval
 - Never skip health scan after a fix (always re-scan full namespace)
@@ -351,7 +382,7 @@ Print it to the user **and** write the same content to `{state_dir}/deploy-repor
 Run the checkpoint:
 
 ```bash
-python3 core/flow/pipeline-checkpoint.py --skill-name rh-qs-debug-and-deploy --qs-name {slug}
+python3 core/flow/pipeline-checkpoint.py --skill-name rh-qs-debug-and-deploy --qs-name {qs-name}
 ```
 Print the dashboard link to the user:
-"Pipeline dashboard updated — track progress at [dashboard.md](.rhoai-qs/{slug}/flow/dashboard.md)"
+"Pipeline dashboard updated — track progress at [dashboard.md](.rhoai-qs/{qs-name}/flow/dashboard.md)"

@@ -95,6 +95,26 @@ Create a dependency order with leaves first (resources that have no dependencies
 - Level 2: Resources depending on Level 0 + Level 1
 - etc.
 
+### 7. Detect Mutually-Exclusive Deployment Options
+
+A project may document more than one way to deploy to OpenShift — in-cluster model serving vs. an external inference endpoint, GPU vs. CPU-only, a full stack vs. a minimal profile, etc. These usually show up as alternative values files, `--set` flags, Makefile targets, or "Option A / Option B" sections in the deployment docs.
+
+Treat something as a deployment option only when **all** of these hold:
+
+- The paths are **mutually exclusive** — running both is wrong or meaningless.
+- Each path is a **complete, deployable** OpenShift path on its own.
+- Choosing between them changes **what runs in the cluster**, not just where or under what name.
+
+These are **not** deployment options — do not record them:
+
+- Namespace or release-name differences
+- Command ordering, or optional add-ons that can coexist with the base install
+- Local-development paths. This skill deploys to OpenShift only, so if `{project_path}/pipeline/architecture-spec.yaml` has `deployment_mode: both`, ignore the `compose` path entirely and consider only the Helm/OpenShift paths.
+
+If you find two or more qualifying paths, record each one under `deployment_options` with its own `deploy_commands`, and set `recommended: true` on the one the project documents as primary. Also seed the top-level `deploy_commands` with the recommended option's commands, so the file is valid even before a selection is made — the main agent overwrites it once the user chooses.
+
+If you find exactly one path, omit `deployment_options`, set `selected_option_id: null`, and fill `deploy_commands` as usual.
+
 ---
 
 ## Output
@@ -108,6 +128,7 @@ Write the analysis to `{state_dir}/deploy-analysis.yaml` following that schema.
 
 **Critical fields:**
 - `deploy_commands` — the EXACT commands for this project (not generic templates). Replace `<namespace>` placeholder with actual namespace.
+- `deployment_options` — only when two or more mutually-exclusive OpenShift paths exist (see step 7). Omit the field otherwise; do not emit a single-entry list.
 - `expected_resources` — complete list of all K8s resources that should exist after deployment
 - `dependency_order` — levels from leaves to root
 - `deploy_instructions_source` — where you found the deploy commands

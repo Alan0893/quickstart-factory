@@ -9,6 +9,7 @@ The saved copy is a local run log for whoever ran the factory — it is not comm
 
 **Namespace:** {namespace}
 **Deployment Method:** {helm | oc-apply | custom}
+**Deployment Option:** {label of selected_option_id — omit this line when the project had a single deployment path}
 **Status:** {SUCCESS | PARTIAL SUCCESS | E2E FAILURES}
 
 ---
