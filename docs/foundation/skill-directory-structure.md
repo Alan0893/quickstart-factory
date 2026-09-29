@@ -67,7 +67,7 @@ Defines the format of artifacts the skill produces. Two variants are acceptable:
 
 1. **Single file** (`output-templates.md`) — when the skill produces a small number of output types. Contains all templates in one document with clear section separators.
 
-2. **Directory** (`output-templates/`) — when the skill produces many structured outputs (e.g., `bp-deploy-and-debug` uses 6 separate template files). Each file defines one output schema.
+2. **Directory** (`output-templates/`) — when the skill produces many structured outputs (e.g., `rh-qs-debug-and-deploy` uses 6 separate template files). Each file defines one output schema.
 
 Both variants serve the same purpose: subagents and the main agent read the relevant template before generating output to ensure format consistency.
 

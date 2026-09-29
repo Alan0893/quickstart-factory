@@ -105,7 +105,7 @@ skills:
       - make helm-lint passes and make dev brings up the local stack
       - Review content: no raw oc/kubectl usage, no committed secrets, Containerfiles use UBI9
       - Recommend getting a peer engineer review on the deploy config before continuing
-    next_skill: rh-qs-document
+    next_skill: rh-qs-debug-and-deploy
 
   # # TODO: fill in when rh-qs-security is implemented
   # - id: rh-qs-security
@@ -116,17 +116,28 @@ skills:
   #   review_guidance: ""
   #   next_skill: rh-qs-debug-and-deploy
 
-  # # TODO: fill in when rh-qs-debug-and-deploy is implemented
-  # - id: rh-qs-debug-and-deploy
-  #   order: TBD
-  #   description: "Deploy and debug — not yet implemented"
-  #   expected_inputs: []
-  #   expected_outputs: []
-  #   review_guidance: ""
-  #   next_skill: rh-qs-document
+  - id: rh-qs-debug-and-deploy
+    order: 6
+    description: "Deploy the quickstart to OpenShift, debug failures in dependency order until all resources are healthy, then verify end-to-end against the test plan"
+    expected_inputs:
+      - name: qs-name
+        description: "Quickstart slug"
+        required: true
+      - name: namespace
+        description: "Target OpenShift namespace — derived as opg-<qs-name>-<user> if omitted"
+        required: false
+    expected_outputs:
+      - path: ".rhoai-qs/{qs-name}/pipeline/deploy-state.yaml"
+        description: "Final cluster health snapshot per resource — handoff to rh-qs-document"
+    review_guidance: |
+      - deploy-state.yaml exists in [.rhoai-qs/{qs-name}/pipeline/deploy-state.yaml](../../../.rhoai-qs/{qs-name}/pipeline/deploy-state.yaml) with overall_status healthy
+      - Review content: unhealthy_resources empty, all E2E tests passed, no resource skipped after 3 failed attempts
+      - Read .tmp/{qs-name}/debug/deploy-report.md (local run log, not committed) for root causes and fixes — confirm those fixes went into the quickstart's source, not just onto the cluster
+      - Recommend getting a peer engineer review on the applied fixes before continuing
+    next_skill: rh-qs-document
 
   - id: rh-qs-document
-    order: 6
+    order: 7
     description: "Generate README and catalog documentation from verified deployment — deploy steps, requirements, architecture diagram, and catalog metadata"
     expected_inputs:
       - name: qs-name
@@ -142,7 +153,7 @@ skills:
     next_skill: rh-qs-ship
 
   - id: rh-qs-ship
-    order: 7
+    order: 8
     description: "Ship the quickstart — create PR with structured summary, generate blog post draft, and update backlog status"
     expected_inputs:
       - name: qs-name

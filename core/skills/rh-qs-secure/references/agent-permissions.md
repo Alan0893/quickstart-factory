@@ -14,6 +14,12 @@ Quickstart Factory agents should operate with **minimal cluster access**. All cl
 3. **Do not adopt foreign resources.** If Helm reports ownership conflicts on existing CRs (e.g. shared MLflow), set `create=false` and use service aliases — do not patch annotations on resources owned by other releases.
 4. **Namespace scope.** Default to a single project/namespace provided by the user. No cluster-scoped changes unless the design doc requires them and the user approves.
 
+### Exception: `rh-qs-debug-and-deploy`
+
+`rh-qs-debug-and-deploy` is the one skill out of scope for rules 1–2. Diagnosing why a pod is in `CrashLoopBackOff` — logs, events, describe, exec, SCC inspection — cannot be expressed as Helm or Makefile targets, and the fix loop has to re-deploy and re-inspect repeatedly. That skill gets **full `oc` access, not read-only**: it reads *and* mutates cluster state within its namespace.
+
+Rule 4 still binds it without exception: a single namespace (`opg-<slug>-<user>` by default), explicit `-n <namespace>` on **every** command, no cluster-scoped changes. Rule 3 still applies too — it must not adopt resources owned by other releases.
+
 ## Access profiles
 
 | Profile | OpenShift role | Use when |
@@ -56,7 +62,7 @@ An MCP server may expose OpenShift operations to Claude with an explicit tool al
 
 Agents may attempt to work around restrictions if generic kubectl is available. Keep the surface **Helm + Makefile** only.
 
-**Status:** Custom Quickstart Factory MCP is not implemented yet. Until then, humans or CI run `make deploy` and `make verify-deploy`; agents prepare charts and docs.
+**Status:** Custom Quickstart Factory MCP is not implemented yet. Until then, humans or CI run `make deploy` and `make verify-deploy`; agents prepare charts and docs. The sole exception is `rh-qs-debug-and-deploy`, which runs the deploy and debug loop itself with direct `oc` access — see [Exception: rh-qs-debug-and-deploy](#exception-rh-qs-debug-and-deploy).
 
 ## What to record in the design doc
 
