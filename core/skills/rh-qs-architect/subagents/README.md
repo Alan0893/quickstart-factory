@@ -1,6 +1,6 @@
 # Architect Subagents
 
-This directory contains the subagents used by `rh-qs-architect` ([../SKILL.md](../SKILL.md)). The validation-skill resolves which quickstart a session applies to, the prd-feature-extractor parses the PRD into structured features, and the chart-selector selects Helm subcharts by matching chart capabilities to those features.
+This directory contains the subagents used by `rh-qs-architect` ([../SKILL.md](../SKILL.md)). The validation-skill resolves which quickstart a session applies to, the prd-feature-extractor parses the PRD into structured features, the chart-selector selects Helm subcharts by matching chart capabilities to those features, the integration-analyzer maps protocols, data flows, and security boundaries from the approved BOM with KB grounding, and the diagram-generator writes a Mermaid architecture diagram from the approved bill of materials.
 
 ## Subagent Prompts
 
@@ -65,7 +65,7 @@ The subagent also writes this data to `.rhoai-qs/{slug}/pipeline/prd-features.ya
 | **Purpose** | Select ai-architecture-charts by matching each chart's capabilities to extracted features and deployment questions |
 | **Input** | `input_features` (5-key object), `deployment_questions`, `slug` (for PRD fallback), `charts_reference_path` |
 | **Output** | JSON with `charts` array — each entry has `name` and `reason` |
-| **When used** | Step 4 — after features are extracted and decision points resolved |
+| **When used** | Step 5 — after features are extracted and decision points resolved |
 | **Why subagent** | Capability-based selection against the charts reference, self-contained — isolates chart selection from the main agent |
 
 **Output schema:**
@@ -75,6 +75,54 @@ The subagent also writes this data to `.rhoai-qs/{slug}/pipeline/prd-features.ya
   "charts": [
     {"name": "ogx-ai", "reason": "Needs agent orchestration and multi-provider LLM access"}
   ]
+}
+```
+
+### 4. integration-analyzer-prompt.md
+
+| Field | Description |
+|-------|-------------|
+| **Name** | `integration-analyzer-prompt.md` |
+| **Purpose** | Analyze integration patterns, data flows, and security boundaries for approved BOM components |
+| **Input** | `slug`, `bom` (approved bill of materials JSON from Step 7) |
+| **Output** | JSON with `protocols`, `data_flows`, and `security_boundaries` arrays |
+| **When used** | Step 9 — after BOM approval and KB retrieval, before diagram generation |
+| **Why subagent** | KB-backed integration analysis in isolated context — keeps the main agent focused on orchestration while surfacing non-obvious protocols, flows, and security boundaries |
+
+**Output schema:**
+
+```json
+{
+  "protocols": [
+    {"pair": "Backend → Model serving", "protocol": "REST via KServe v2 inference protocol"}
+  ],
+  "data_flows": [
+    {"name": "User query flow", "path": "Frontend → Backend API → Vector DB → LLM → Response"}
+  ],
+  "security_boundaries": [
+    {"point": "Frontend → Backend", "mechanism": "OAuth2 with RHOAI authentication"}
+  ]
+}
+```
+
+### 5. diagram-generator-prompt.md
+
+| Field | Description |
+|-------|-------------|
+| **Name** | `diagram-generator-prompt.md` |
+| **Purpose** | Generate a Mermaid architecture diagram from the approved bill of materials |
+| **Input** | `slug` (PRD path derived as `.rhoai-qs/{slug}/prds/prd.md`), `bom` (list of `{role, technology, delivery}`), `charts` (selected chart names only) |
+| **Output** | Writes `.rhoai-qs/{slug}/designs/architecture-diagram.mmd`; returns JSON with `status`, `path`, and a short `message` |
+| **When used** | Step 10 — after integration analysis, before the architecture spec |
+| **Why subagent** | Isolated diagram task — nodes from the BOM, edges from roles and PRD user flows, so the main agent stays on orchestration |
+
+**Output schema:**
+
+```json
+{
+  "status": "success",
+  "path": ".rhoai-qs/mortgage-processor/designs/architecture-diagram.mmd",
+  "message": "Wrote architecture diagram."
 }
 ```
 
