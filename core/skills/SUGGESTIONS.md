@@ -12,6 +12,7 @@ Original feedback captured below. Status updated after skill/doc changes.
 - [x] **Deployment sub-agent** — documented in `rh-qs-deploy` and `agent-permissions.md`
 - [x] **Helm-only cluster ops (no oc in agent path)** — deploy, document, scaffold, helm reference guides
 - [x] **Version bump skill** — `rh-qs-bump-versions`
+- [x] **MinIO conversion → `rh-qs-debug-and-deploy`** — `rh-qs-minio-conversion` step 7 recommends debug-and-deploy (deploy + test + debug/fix for conversion gaps, e.g. Loki bundled MinIO) instead of verify-deploy alone
 
 ## Not completed (needs more time / separate work)
 
